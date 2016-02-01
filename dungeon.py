@@ -7,9 +7,9 @@ from contextlib import closing
 # configuration
 DATABASE = './sm_daily.db'
 DEBUG = True
-SECRET_KEY = 'smdungeon'
+SECRET_KEY = 'development key'
 USERNAME = 'admin'
-PASSWORD = 'password'
+PASSWORD = 'default'
 
 # application definition
 app = Flask(__name__)
@@ -88,15 +88,22 @@ def dead(depth):
         
     # on a POST request, we add data to the database
     if request.method == 'POST':
-        seed = request.form['seed'] #use daily dungeon seed for validation
-        steam_id = request.form['steam_id']
-        steam_name = request.form['steam_name']
-        level = request.form['depth']
-        dead_to = request.form['dead_to']
-        x = request.form['x']
-        y = request.form['y']
-        cur.execute('INSERT INTO deaths(steam_id, steam_name, dead_to, level, x, y) VALUES (?,?,?,?)', steam_id, steam_name, dead_to, level, x, y)
-        return (None, 200)
+        print(request.get_json(force=True))
+        form = request.get_json(force=True)
+        seed = form['seed'] #use daily dungeon seed for validation
+        if seed != _dungeon['seed']:
+            print("%d : %d" % (seed, _dungeon['seed']))
+            return (jsonify({"error":"Seed does not match"}), 400)
+        
+        steam_id = form['steam_id']
+        steam_name = form['steam_name']
+        level = form['level']
+        dead_to = form['dead_to']
+        x = form['x']
+        y = form['y']
+        cur.execute('INSERT OR REPLACE INTO deaths(steam_id, steam_name, dead_to, level, x, y) VALUES (?,?,?,?,?,?)', (steam_id, steam_name, dead_to, level, x, y))
+        g.db.commit()
+        return (jsonify({}), 200)
             
 if __name__ == '__main__':
     schedule.run_pending()
