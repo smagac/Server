@@ -45,7 +45,7 @@ class Connection:
         """
 
         # for now we currently have no functionality planned for disconnection
-        yield self.server.connections.remove(self)
+        self.server.connections.remove(self)
 
     @tornado.gen.coroutine
     def dispatch_client(self):
@@ -69,8 +69,9 @@ class Connection:
                     yield self.server.event_handler.handle_message(self.player, payload)
                 except Exception as e:
                     traceback.print_exc()
-                    print("message must be json")
+                    self.log("message must be json")
         except tornado.iostream.StreamClosedError:
+            # handle closed processing within on_disconnect instead of here
             pass
 
     @tornado.gen.coroutine
