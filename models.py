@@ -1,5 +1,6 @@
 from peewee import *
 from dungeon import db
+import datetime
 
 class Player:
     """
@@ -42,3 +43,17 @@ class DeadPlayer(Model):
 
     class Meta:
         database = db
+
+def _expiration():
+    return datetime.datetime.now() + datetime.timedelta(days=2)
+
+class UserDungeon(Model):
+    """
+    DB representation of a user uploaded "file"
+    """
+    seed = BigIntegerField()
+    filename = CharField()
+    difficulty = IntegerField()
+    filesize = IntegerField()
+    uploader = CharField(default="Adventurer")
+    expiration_date = DateTimeField(default=_expiration)
