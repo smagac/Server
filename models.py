@@ -14,7 +14,7 @@ class Player:
         self.stream = connection.stream
         self.floor = -1
         self.steam_id = -1
-        self.steam_name = "An Unknown Soul"
+        self.name = "An Unknown Soul"
 
         # this should be flagged as True once the "connected" message is received from
         # the client.  A connection should not have any messages cast to it until the
@@ -30,7 +30,7 @@ class Player:
         """
         if self.steam_id > 0:
             return self.steam_id
-        return self.stream.id
+        return self.connection.id
 
 
 class DeadPlayer(Model):

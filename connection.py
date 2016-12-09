@@ -23,7 +23,7 @@ class Connection:
         # increment the unique id of the connection
         Connection.client_id += 1
         
-        self.id = Connection.client_id
+        self.id = -1*Connection.client_id
         self.stream = stream
         self.server = server
 
@@ -46,6 +46,8 @@ class Connection:
 
         # for now we currently have no functionality planned for disconnection
         self.server.connections.remove(self)
+        self.server.floors[self.player.floor].remove(self.player)
+        self.log("goodbye")
 
     @tornado.gen.coroutine
     def dispatch_client(self):
@@ -56,12 +58,10 @@ class Connection:
             while True:
                 # messages are read in by line
                 line = yield self.stream.read_until(b'\n') 
-                line = line.decode('utf-8') # convert bytes into string
 
                 # read the json from the message
                 try:
-                    print(line)
-                    payload = json.loads(line)
+                    payload = tornado.escape.json_decode(line)
                     # for debugging purposes, track what responses we're receiving
                     self.log(str(payload))
 

@@ -1,5 +1,7 @@
 import models
+import json
 from dungeon import db
+from typing import List
 
 class EventHandler:
     """
@@ -14,13 +16,18 @@ class EventHandler:
     def __init__(self, server):
         self.server = server
 
-    def _send_message(self, floor, message, exclude=[]):
+    def _send_message(self, target = None, message: dict = {}, exclude: List[models.Player] = []):
         """
         Allow sending a batch message to all players on a floor
         """
-        for player in self.server.floors.get(floor, dict()).values():
-            if player not in exclude:
-                player.stream.write(json.dumps(message))
+        print(message)
+        if target is not None and isinstance(target, int):
+            for player in self.server.floors.get(target, list()):
+                if player not in exclude:
+                    player.stream.write(str.encode(json.dumps(message) + "\n"))
+            return {}
+        else:
+            return target.stream.write(str.encode(json.dumps(message) + "\n"))
 
     def handle_message(self, player: models.Player, payload: dict):
         """
@@ -29,7 +36,6 @@ class EventHandler:
         if payload.get("type"):
             handler = getattr(self, 'on_'+payload['type'], None)
             if handler:
-                print(handler)
                 if player.loaded or (handler == self.on_connect and not player.loaded):
                     return handler(player, payload) or {}
         return {}
@@ -37,16 +43,18 @@ class EventHandler:
     def on_connect(self, player: models.Player, payload: dict):
         """
         Initial connection information, providing the server
-        with the identifying credentials of the player.
+        with the identifying credentials of the player.  This
+        message will not propagate data down to other players.
+        To inform other players of your presence, you must
+        set the floor you are are after connecting
         """
         print("connecting player data")
         player.appearance = payload['appearance']
-        player.steam_id = properties['steam_id']
-        player.steam_name = properties['steam_name']
+        player.steam_id = payload['id']
+        player.name = payload['name']
         player.loaded = True
 
-        return {}
-
+        return None
 
     def on_floor(self, player: models.Player, payload: dict):
         """
@@ -58,31 +66,40 @@ class EventHandler:
         # else on that floor that the player is leaving
         if player.floor != -1:
             self._send_message(player.floor, {
-                'type': 'remove',
-                'player': p.uid,
+                'type': 'disconnect',
+                'id': p.id,
             }, [player])
-            floors.get(player.floor, list()).remove(player)
+            self.server.floors.get(player.floor, list()).remove(player)
 
         player.floor = payload['floor']
-        player.position = payload['position']
+        player.position = (payload['x'], payload['y'])
 
         # add the player to the new floor
-        players = floors.get(player.floor, list())
+        players = self.server.floors.get(player.floor, list())
         players.append(player)
-        floors.put(player.floor, players)
+        self.server.floors[player.floor] = players
+        self._send_message(target=player.floor, message={
+            'type': 'connect',
+            'id': player.id,
+            'name': player.name,
+            'appearance': player.appearance,
+            'x': player.position[0],
+            'y': player.position[1]
+        }, exclude=[player])
 
         # inform player of the dead on this floor as well as other connected players
         dead = []
         with db.transaction():
             dead = models.DeadPlayer.select().where(
-                Person.level == player.floor,
+                models.DeadPlayer.level == player.floor,
             )
 
-        return player.stream.write(json.dumps({
+        return self._send_message(target=player, message={
+            'type': 'floor',
             'dead': [
                 {
                     'steam_id': p.steam_id,
-                    'steam_name': p.steam_name,
+                    'name': p.name,
                     'dead_to': p.dead_to,
                     'x': p.x,
                     'y': p.y, 
@@ -91,11 +108,13 @@ class EventHandler:
             'players': [
                 {
                     'id': p.id,
-                    'position' : p.position,
+                    'name': p.name,
+                    'x' : p.position[0],
+                    'y' : p.position[1],
                     'appearance': p.appearance,
                 } for p in players if p != player
             ]
-        }))
+        })
 
 
     def on_dead(self, player: models.Player, payload: dict):
@@ -103,8 +122,8 @@ class EventHandler:
         Handles informing other players of when and where
         and player dies on the floor
         """
-        user = self.connected_users.get(origin)
         died_to = payload['dead_to']
+        player.dead = True
         
         # save response into the sql db
         with db.transaction():
@@ -116,29 +135,25 @@ class EventHandler:
                 level = player.floor,
                 dead_to = died_to,
             ).execute()
-        
 
         # send the message to everyone so they know who died
-        self._send_message(player.floor, {
+        return self._send_message(target=player.floor, message={
             "type": "dead",
-            "player": user.uid,
+            "player": player.id,
             "died_to": died_to,
-            "position": user.position
+            "position": player.position
         }, exclude=[player])
 
-        return {}
-
-    def on_move(self, player: models.Player, payload: dict):
+    def on_movement(self, player: models.Player, payload: dict):
         """
         Handles moving the player to a new position on the floor
         and notifying all connected users on that floor of the
         player's new position
         """
-        player.position = payload['position']
-        self._send_message(player.floor, {
-            'type': 'move',
-            'id': player.uid,
-            'position': player.position
+        player.position = (payload['x'], payload['y'])
+        return self._send_message(target=player.floor, message={
+            'type': 'movement',
+            'id': player.id,
+            'x' : player.position[0],
+            'y' : player.position[1],
         }, exclude=[player])
-
-        return {}
