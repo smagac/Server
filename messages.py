@@ -53,8 +53,27 @@ class EventHandler:
         player.steam_id = payload['id']
         player.name = payload['name']
         player.loaded = True
+        player.dead = False
 
         return None
+
+    def on_disconnect(self, player: models.Player, payload: dict):
+        if player.dead:
+            return self._send_message(target=player.floor, message={
+                "type": "dead",
+                "player": player.id,
+                "died_to": died_to,
+                "position": player.position
+            }, exclude=[player])
+        else:
+            return self._send_message(
+                target=player.floor, 
+                message={
+                    'type': 'disconnect', 
+                    'id': player.id
+                },
+                exclude=[player]
+            )
 
     def on_floor(self, player: models.Player, payload: dict):
         """
@@ -65,10 +84,10 @@ class EventHandler:
         # if player is already located on a floor, tell everyone
         # else on that floor that the player is leaving
         if player.floor != -1:
-            self._send_message(player.floor, {
+            self._send_message(target=player.floor, message={
                 'type': 'disconnect',
                 'id': p.id,
-            }, [player])
+            }, exclude=[player])
             self.server.floors.get(player.floor, list()).remove(player)
 
         player.floor = payload['floor']
@@ -122,8 +141,8 @@ class EventHandler:
         Handles informing other players of when and where
         and player dies on the floor
         """
-        died_to = payload['dead_to']
         player.dead = True
+        player.dead_to = payload['dead_to'] 
         
         # save response into the sql db
         with db.transaction():
@@ -133,16 +152,11 @@ class EventHandler:
                 x = player.position[0],
                 y = player.position[1],
                 level = player.floor,
-                dead_to = died_to,
+                dead_to = player.dead_to,
             ).execute()
 
         # send the message to everyone so they know who died
-        return self._send_message(target=player.floor, message={
-            "type": "dead",
-            "player": player.id,
-            "died_to": died_to,
-            "position": player.position
-        }, exclude=[player])
+        return 
 
     def on_movement(self, player: models.Player, payload: dict):
         """

@@ -15,6 +15,8 @@ class Player:
         self.floor = -1
         self.steam_id = -1
         self.name = "An Unknown Soul"
+        self.dead = False 
+        self.dead_to = None
 
         # this should be flagged as True once the "connected" message is received from
         # the client.  A connection should not have any messages cast to it until the

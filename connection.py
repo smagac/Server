@@ -47,6 +47,11 @@ class Connection:
         # for now we currently have no functionality planned for disconnection
         self.server.connections.remove(self)
         self.server.floors[self.player.floor].remove(self.player)
+        # tell others about the removal of this player
+        # only if they're not dead, else it'll show their tombstone
+        self.server.event_handler.handle_message(self.player, {
+            type: 'disconnect'
+        })    
         self.log("goodbye")
 
     @tornado.gen.coroutine
