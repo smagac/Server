@@ -13,7 +13,7 @@ class Player:
         self.connection = connection
         self.stream = connection.stream
         self.floor = -1
-        self.steam_id = -1
+        self.steam_id = None
         self.name = "An Unknown Soul"
         self.dead = False 
         self.dead_to = None
@@ -30,7 +30,7 @@ class Player:
         else their connection id, so as to prevent a flood of corpses
         on any floor
         """
-        if self.steam_id > 0:
+        if self.steam_id is not None:
             return self.steam_id
         return self.connection.id
 
@@ -45,6 +45,13 @@ class DeadPlayer(Model):
 
     class Meta:
         database = db
+
+    def __iter__(self):
+        yield ('id', self.steam_id)
+        yield ('name', self.steam_name)
+        yield ('dead_to', self.dead_to)
+        yield ('x', self.x)
+        yield ('y', self.y)
 
 def _expiration():
     return datetime.datetime.now() + datetime.timedelta(days=2)

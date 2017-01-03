@@ -116,13 +116,7 @@ class EventHandler:
         return self._send_message(target=player, message={
             'type': 'floor',
             'dead': [
-                {
-                    'steam_id': p.steam_id,
-                    'name': p.name,
-                    'dead_to': p.dead_to,
-                    'x': p.x,
-                    'y': p.y, 
-                } for p in dead if p.steam_id != player.id
+                dict(p) for p in dead
             ],
             'players': [
                 {
@@ -142,21 +136,37 @@ class EventHandler:
         and player dies on the floor
         """
         player.dead = True
-        player.dead_to = payload['dead_to'] 
         
-        # save response into the sql db
+        # don't allow stacking
         with db.transaction():
-            models.DeadPlayer.create(
-                steam_id = player.steam_id,
-                steam_name = player.steam_name,
-                x = player.position[0],
-                y = player.position[1],
-                level = player.floor,
-                dead_to = player.dead_to,
+            models.DeadPlayer.delete().where(
+                models.DeadPlayer.x == player.position[0],
+                models.DeadPlayer.y == player.position[1],
+                models.DeadPlayer.level == player.floor
             ).execute()
 
+        # move player's tombstone if they've already died today
+        with db.transaction():
+            deadPlayer, created = models.DeadPlayer.get_or_create(
+                steam_id=player.id,
+                defaults={
+                    'x': player.position[0],
+                    'y': player.position[1],
+                    'level': player.floor,
+                    'steam_id': player.id,
+                    'steam_name': player.name,
+                    'dead_to': payload['dead_to'],
+                }
+            )
+            if not created:
+                deadPlayer.dead_to = payload['dead_to']
+                deadPlayer.x = player.position[0]
+                deadPlayer.y = player.position[1]
+                deadPlayer.level = player.floor
+                deadPlayer.save()
+             
         # send the message to everyone so they know who died
-        return 
+        return self._send_message(target=player.floor, message=dict(deadPlayer), exclude=[player])
 
     def on_movement(self, player: models.Player, payload: dict):
         """
