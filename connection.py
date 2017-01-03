@@ -49,8 +49,8 @@ class Connection:
         self.server.floors[self.player.floor].remove(self.player)
         # tell others about the removal of this player
         # only if they're not dead, else it'll show their tombstone
-        self.server.event_handler.handle_message(self.player, {
-            type: 'disconnect'
+        yield self.server.event_handler.handle_message(self.player, {
+            'type': 'disconnect'
         })    
         self.log("goodbye")
 
@@ -67,9 +67,6 @@ class Connection:
                 # read the json from the message
                 try:
                     payload = tornado.escape.json_decode(line)
-                    # for debugging purposes, track what responses we're receiving
-                    self.log(str(payload))
-
                     # handle the event type associated with the message
                     yield self.server.event_handler.handle_message(self.player, payload)
                 except Exception as e:

@@ -38,6 +38,10 @@ class EventHandler:
             if handler:
                 if player.loaded or (handler == self.on_connect and not player.loaded):
                     return handler(player, payload) or {}
+            else:
+                print ("invalid type %s" % payload.get("type"))
+        else:
+            print ("invalid payload")
         return {}
 
     def on_connect(self, player: models.Player, payload: dict):
@@ -58,14 +62,7 @@ class EventHandler:
         return None
 
     def on_disconnect(self, player: models.Player, payload: dict):
-        if player.dead:
-            return self._send_message(target=player.floor, message={
-                "type": "dead",
-                "player": player.id,
-                "died_to": died_to,
-                "position": player.position
-            }, exclude=[player])
-        else:
+        if not player.dead:
             return self._send_message(
                 target=player.floor, 
                 message={
@@ -74,6 +71,7 @@ class EventHandler:
                 },
                 exclude=[player]
             )
+        return {}
 
     def on_floor(self, player: models.Player, payload: dict):
         """
@@ -166,7 +164,10 @@ class EventHandler:
                 deadPlayer.save()
              
         # send the message to everyone so they know who died
-        return self._send_message(target=player.floor, message=dict(deadPlayer), exclude=[player])
+        return self._send_message(target=player.floor, message={
+            'type': 'dead',
+            **dict(deadPlayer)
+        }, exclude=[player])
 
     def on_movement(self, player: models.Player, payload: dict):
         """
