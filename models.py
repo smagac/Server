@@ -55,7 +55,18 @@ class UserDungeon(Model):
     """
     seed = BigIntegerField()
     filename = CharField()
-    difficulty = IntegerField()
+    extension = CharField()
     filesize = IntegerField()
     uploader = CharField(default="Adventurer")
     expiration_date = DateTimeField(default=_expiration)
+
+    class Meta:
+        database = db
+
+    def __iter__(self):
+        yield ('seed', self.seed)
+        yield ('filename', self.filename)
+        yield ('extension', self.extension)
+        yield ('filesize', self.filesize)
+        yield ('uploader', self.uploader)
+        yield ('expiration', self.expiration_date.timestamp())

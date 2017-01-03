@@ -5,11 +5,8 @@ from datetime import datetime
 from contextlib import closing
 
 # configuration
-DATABASE = './sm_daily.db'
+DATABASE = 'sm_daily.db'
 DEBUG = True
-SECRET_KEY = 'development key'
-USERNAME = 'admin'
-PASSWORD = 'default'
 
 # Dungeon specifications
 _TYPES = ["Other", "Audio", "Image", "Compressed", "Video", "Executable"]
@@ -29,16 +26,13 @@ class Dungeon:
         yield ('type', self.filetype)
         yield ('difficulty', self.difficulty)
 
-db = SqliteDatabase(DATABASE)
+db = SqliteDatabase(DATABASE, autocommit=True)
 
 def create_tables():
     import models
     db.connect()
-    try:
-        db.create_tables([models.DeadPlayer])
-    # ignore if the tables exist already
-    except OperationalError:
-        pass
+    db.create_tables([models.DeadPlayer, models.UserDungeon], True)
+    
 
 def main():
     import server
@@ -57,7 +51,7 @@ def main():
 
     # configuration
     host = '0.0.0.0'
-    tcpport = 8008
+    tcpport = 8081
     httpport = 8080
 
     # tcp server

@@ -9,6 +9,10 @@ import tornado.web
 import tornado.escape
 import models
 import json
+import traceback, sys
+from http import HTTPStatus
+
+from playhouse.shortcuts import model_to_dict
 
 class DailyDungeonRequestHandler(tornado.web.RequestHandler):
     def initialize(self, dungeon):
@@ -21,6 +25,8 @@ class DailyDungeonRequestHandler(tornado.web.RequestHandler):
         self.write(
             json.dumps(dict(self.dungeon))
         )
+        self.set_status(HTTPStatus.OK)
+        self.finish()
 
 class UserUploadRequestHandler(tornado.web.RequestHandler):
     def initialize(self, db):
@@ -30,21 +36,31 @@ class UserUploadRequestHandler(tornado.web.RequestHandler):
         """
         Handle creating a new user dungeon
         """
+        print(self.request.body)
         data = tornado.escape.json_decode(self.request.body)
-            
-        with self.db.transaction():
-            dungeon = models.UserDungeon.create(
-                seed=data['seed'],
-                filename=data['filename'],
-                difficulty=data['difficulty'],
-                filesize=data['filesize'],
-                uploader=data['uploader']
-            )
         
-        # write back created dungeon
-        self.write(
-            json.dumps(dungeon)
-        )
+        try:        
+            self.db.connect()
+            with self.db.transaction():
+                dungeon = models.UserDungeon.create(
+                    seed=data['seed'],
+                    filename=data['filename'],
+                    extension=data['extension'],
+                    filesize=data['filesize'],
+                    uploader=data['uploader'] or models.UserDungeon.uploader.default
+                )
+            # write back created dungeon
+            self.write(
+                json.dumps(dict(dungeon))
+            )
+            self.set_status(HTTPStatus.CREATED)
+        except Exception as e:
+            self.set_status(HTTPStatus.NOT_ACCEPTABLE)
+            traceback.print_exc(file=sys.stdout)
+        finally:
+            self.db.close()
+            self.finish()
+        
 
     def get(self):
         """
@@ -52,6 +68,7 @@ class UserUploadRequestHandler(tornado.web.RequestHandler):
         """
         self.write(
             json.dumps([
-                dungeon for dungeon in models.UserDungeon.select()
+                dict(dungeon) for dungeon in models.UserDungeon.select()
             ])
         )
+        self.finish()
