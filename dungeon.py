@@ -17,9 +17,21 @@ class Dungeon:
         self.refresh()
 
     def refresh(self):
+        import models
+        
         self.seed = random.getrandbits(_SEEDSIZE)
         self.difficulty = random.randint(1, 5)
         self.filetype = random.choice(_TYPES)
+
+        # remove expired dungeons
+        db.connect()
+        with db.transaction():
+            models.UserDungeon.delete().where(
+                models.UserDungeon.expiration_date < datetime.now()
+            ).execute()
+            # clear table
+            models.DeadPlayer.delete().execute()
+        db.close()
 
     def __iter__(self):
         yield ('seed', self.seed)
