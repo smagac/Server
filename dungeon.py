@@ -44,6 +44,7 @@ def create_tables():
     import models
     db.connect()
     db.create_tables([models.DeadPlayer, models.UserDungeon], True)
+    db.close()
     
 
 def main():
