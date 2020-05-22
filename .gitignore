@@ -1,4 +1,1 @@
-__pycache__
-*.pyc
-
-sm_daily.db
+node_modules/

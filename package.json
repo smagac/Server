@@ -1,0 +1,30 @@
+{
+  "name": "craft_server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Multiplayer server for C:\\raft",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smagac/Server.git"
+  },
+  "author": "Nicholas Hydock <nhydock@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/smagac/Server/issues"
+  },
+  "homepage": "https://github.com/smagac/Server#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "express-promise-router": "^3.0.3",
+    "express-validation": "^3.0.5",
+    "express-ws": "^4.0.0",
+    "ioredis": "^4.17.1",
+    "lodash": "^4.17.15",
+    "winston": "^3.2.1"
+  }
+}
